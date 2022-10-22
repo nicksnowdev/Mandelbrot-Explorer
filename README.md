@@ -1,4 +1,4 @@
-# MandelbrotExplorer
+# Mandelbrot-Explorer
 
 This project plots the Mandelbrot set and allows you to pan around and zoom with the mouse.
 There is a "pixel size" control to lower the resolution (helpful for quickly navigating through deeper zooms)
