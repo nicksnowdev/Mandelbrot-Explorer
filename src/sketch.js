@@ -6,12 +6,16 @@ const controls = {
   "zoom": 1,
   "panX": .5,
   "panY": 0,
-  "pixelScale": 1,
+  "resolution": 1,
   "basePrecision": .16,
-  "convergeColor": true
+  "bg": "#000000",
+  "fast": "#0000ff",
+  "medium": "#ff0000",
+  "slow": "#ffff00",
+  "contained": "#ffffff",
+  "bw": true
 }
 let paused = false;
-let fpsGraph;
 let pane;
 let precisionSlider;
 let canvas;
@@ -114,19 +118,27 @@ function setup() {
   pane = new Tweakpane.Pane({container: document.getElementById("controlsContainer"), title: "controls", expanded: true});
   pane.on("change", () => setRedraw());
   pane.registerPlugin(TweakpaneEssentialsPlugin); // add plugin for fpsgraph
-  pane.addSeparator();
+
+  const tab = pane.addTab({
+    pages: [
+      {title: 'Render'},
+      {title: 'Style'},
+    ]
+  });
 
   // main controls
-  pane.addInput(controls, "pixelScale", {label: "pixel size", min: 1, max: 8, step: 1});
-  precisionSlider = pane.addInput(controls, "basePrecision", {label: "precision", min: .1, max: 1, step: .01});
-  pane.addInput(controls, "convergeColor", {label: "white"});
-
-  pane.addSeparator();
-  pane.addButton({title: "reset"}).on("click", () => goto(.5, 0, 1, .16));
-  pane.addSeparator();
+  tab.pages[0].addInput(controls, "resolution", {label: "resolution", min: 0, max: 1, step: .1});
+  precisionSlider = tab.pages[0].addInput(controls, "basePrecision", {label: "precision", min: .1, max: 1, step: .01});
+  tab.pages[0].addSeparator();
+  tab.pages[0].addButton({title: "reset pan and zoom"}).on("click", () => goto(.5, 0, 1, .16));
   
-  const stats = pane.addFolder({title: "stats", expanded: false});
-  fpsGraph = stats.addBlade({view: "fpsgraph", label: "fps"});
+  tab.pages[1].addInput(controls, "contained", {label: "contained",  view: "color"});
+  tab.pages[1].addInput(controls, "slow", {label: "slow",  view: "color"});
+  tab.pages[1].addInput(controls, "medium", {label: "medium", view: "color"});
+  tab.pages[1].addInput(controls, "fast", {label: "fast", view: "color"});
+  tab.pages[1].addInput(controls, "bg", {label: "background", view: "color"});
+  tab.pages[1].addSeparator();
+  tab.pages[1].addInput(controls, "bw", {label: "grayscale"});
 
   // initialize the ranges and draw the first plot
   setRedraw();
@@ -136,21 +148,32 @@ function setup() {
 
 
 function draw() {
-  fpsGraph.begin();
-
   // only draw if something was updated
   if(redraw) {
+    let col;
+    let bg = color(controls.bg);
+    let fast = color(controls.fast);
+    let medium = color(controls.medium);
+    let slow = color(controls.slow);
+    let contained = color(controls.contained);
+
     if(resumeX == 0 && resumeY == 0) {
       background(0); // only clear at the very beginning in case it takes multiple frames to draw
       print(locate()); // log current settings
     }
     // process each pixel
     loadPixels();
-    let pixelScale = controls.pixelScale; // get this into its own variable
+    let pixelScale = round(map(1 - controls.resolution, 0, 1, 1, 10)); // convert rez to pixel size
     let x;
     let y;
     let t0 = performance.now();;
     let t1;
+    let n = controls.iterations;
+    let shade;
+    let red;
+    let green;
+    let blue;
+    let gray = controls.bw;
     for(y = resumeY; y <= height - pixelScale; y += pixelScale) {
       for(x = resumeX; x <= width - pixelScale; x += pixelScale) {
         // initialize
@@ -158,8 +181,6 @@ function draw() {
         let b = map(y, 0, height, -yRange, yRange) - controls.panY;
         let cR = a;
         let cI = b;
-
-        let n = controls.iterations;
         let time = 0; // track how fast a point diverges
 
         // iterate
@@ -170,40 +191,40 @@ function draw() {
           b = bb;
 
           // see if it is escaping
-          if(a*a + b*b > 4 && time == 0) {
+          if(a*a + b*b > 4) {
             time = i;
             break; // exit early if possible
           }
         }
 
-        let red;
-        let green;
-        let blue;
-        let shade = 3 * time / n;
-        let converge = 255 * controls.convergeColor; // color of set members
-        // if it converges, shade black or white
-        if(time == 0) {
-          red = converge;
-          green = converge;
-          blue = converge;
-        }
-        // if it diverges quickly, shade blue
-        else if(shade < 1) {
-          red = 0;
-          green = 0;
+        if(gray) {
+          shade = time / n;
+          red = 255 * shade;
+          green = 255 * shade;
           blue = 255 * shade;
         }
-        // if it diverges at a medium pace, shade red
-        else if(shade < 2) {
-          red = 255 * (shade - 1);
-          green = 0;
-          blue = 255 * (1 - (shade - 1));
-        }
-        // if it diverges slowly, shade yellow
         else {
-          red = 255;
-          green = 255 * (shade - 2);
-          blue = 0;
+          shade = 3 * time / n;
+          // if it converges, shade black or white
+          if(time == 0) {
+            col = contained;
+          }
+          // if it diverges quickly
+          else if(shade < 1) {
+            col = lerpColor(bg, fast, shade);
+          }
+          // if it diverges at a medium pace
+          else if(shade < 2) {
+            col = lerpColor(fast, medium, shade - 1);
+          }
+          // if it diverges slowly
+          else {
+            col = lerpColor(medium, slow, shade - 2);
+          }
+
+          red = col._array[0] * 255;
+          green = col._array[1] * 255;
+          blue = col._array[2] * 255;
         }
 
         for(let i = 0; i < pixelScale; i++) {
@@ -231,6 +252,4 @@ function draw() {
       line(0, y + pixelScale * 2, width, y + pixelScale * 2);
     }
   }
-
-  fpsGraph.end();
 }
