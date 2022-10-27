@@ -1,0 +1,3 @@
+Zoom into this cool fractal! As you zoom in, the number of iterations increases to show more detail. This causes it to slow down the deeper you zoom, so use the "resolution" slider to lower the resolution for easier navigation (grayscale helps a little too). In the deepest zooms possible, each point on the plane is iterated 1 million times. Magnification is limited to 100 trillion X. The graphics eventually become distorted and pixelated. At that level, Javascript's floating point numbers simply don't have enough precision.
+
+Pan and zoom with the mouse
