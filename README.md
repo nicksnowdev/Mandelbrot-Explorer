@@ -1,6 +1,6 @@
 # Mandelbrot-Explorer
 
-Try it here: https://one-lemon.com/projects/mandelbrot_explorer/
+Try it here: https://one-lemon.com/projects/Mandelbrot-Explorer/
 
 This project plots the Mandelbrot set and allows you to pan around and zoom with the mouse.
 There is a "resolution" control to lower the resolution (helpful for quickly navigating through deeper zooms)
